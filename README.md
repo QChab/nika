@@ -15,7 +15,7 @@ The easiest way to run the project is with Docker. No need to install Node.js or
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/QChab/nika
 cd nika
 
 # Build and start all services
