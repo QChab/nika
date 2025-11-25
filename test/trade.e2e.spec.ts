@@ -7,7 +7,8 @@ import { Connection } from 'mongoose';
 import { ReferralModule } from '../src/referral/referral.module';
 import { TradeModule } from '../src/trade/trade.module';
 import { ConfigModule } from '@nestjs/config';
-import * as request from 'supertest';
+import request from 'supertest';
+import type { Server } from 'http';
 
 describe('Trade Webhook E2E', () => {
   let app: INestApplication;
@@ -56,26 +57,26 @@ describe('Trade Webhook E2E', () => {
 
   describe('Commission Distribution', () => {
     it('should distribute commissions across referral chain on trade', async () => {
-      const userAResponse = await request.default(app.getHttpServer())
+      const userAResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
 
-      const userBResponse = await request.default(app.getHttpServer())
+      const userBResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: userAResponse.body.referralCode,
         })
         .expect(201);
 
-      const userCResponse = await request.default(app.getHttpServer())
+      const userCResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: userBResponse.body.referralCode,
         })
         .expect(201);
 
-      const tradeResponse = await request.default(app.getHttpServer())
+      const tradeResponse = await request(app.getHttpServer() as Server)
         .post('/api/webhook/trade')
         .send({
           userId: userCResponse.body.userId,
@@ -98,12 +99,12 @@ describe('Trade Webhook E2E', () => {
     });
 
     it('should handle trade for user without referrer', async () => {
-      const userResponse = await request.default(app.getHttpServer())
+      const userResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
 
-      const tradeResponse = await request.default(app.getHttpServer())
+      const tradeResponse = await request(app.getHttpServer() as Server)
         .post('/api/webhook/trade')
         .send({
           userId: userResponse.body.userId,
@@ -121,19 +122,19 @@ describe('Trade Webhook E2E', () => {
     });
 
     it('should update earnings after trade', async () => {
-      const referrerResponse = await request.default(app.getHttpServer())
+      const referrerResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
 
-      const traderResponse = await request.default(app.getHttpServer())
+      const traderResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: referrerResponse.body.referralCode,
         })
         .expect(201);
 
-      await request.default(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/api/webhook/trade')
         .send({
           userId: traderResponse.body.userId,
@@ -144,9 +145,9 @@ describe('Trade Webhook E2E', () => {
         })
         .expect(200);
 
-      const earningsResponse = await request.default(app.getHttpServer())
+      const earningsResponse = await request(app.getHttpServer() as Server)
         .get('/api/referral/earnings')
-        .set('x-user-id', referrerResponse.body.userId)
+        .set('x-user-id', referrerResponse.body.userId as string)
         .expect(200);
 
       expect(earningsResponse.body.grandTotal).toBe('3');
@@ -155,7 +156,7 @@ describe('Trade Webhook E2E', () => {
     });
 
     it('should reject trade for non-existent user', async () => {
-      await request.default(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/api/webhook/trade')
         .send({
           userId: '507f1f77bcf86cd799439011',
@@ -168,7 +169,7 @@ describe('Trade Webhook E2E', () => {
     });
 
     it('should reject trade for invalid user ID format', async () => {
-      await request.default(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/api/webhook/trade')
         .send({
           userId: 'invalid-id',
@@ -183,12 +184,12 @@ describe('Trade Webhook E2E', () => {
 
   describe('Fee Distribution Verification', () => {
     it('should verify fee breakdown matches spec', async () => {
-      const userResponse = await request.default(app.getHttpServer())
+      const userResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
 
-      const tradeResponse = await request.default(app.getHttpServer())
+      const tradeResponse = await request(app.getHttpServer() as Server)
         .post('/api/webhook/trade')
         .send({
           userId: userResponse.body.userId,
@@ -199,9 +200,9 @@ describe('Trade Webhook E2E', () => {
         })
         .expect(200);
 
-      const totalFee = parseFloat(tradeResponse.body.totalFee);
-      const cashback = parseFloat(tradeResponse.body.cashback);
-      const treasury = parseFloat(tradeResponse.body.treasury);
+      const totalFee = parseFloat(tradeResponse.body.totalFee as string);
+      const cashback = parseFloat(tradeResponse.body.cashback as string);
+      const treasury = parseFloat(tradeResponse.body.treasury as string);
 
       expect(cashback / totalFee).toBeCloseTo(0.1, 2);
       expect(treasury / totalFee).toBeCloseTo(0.55, 2);

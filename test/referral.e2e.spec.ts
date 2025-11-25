@@ -7,7 +7,8 @@ import { Connection } from 'mongoose';
 import { ReferralModule } from '../src/referral/referral.module';
 import { TradeModule } from '../src/trade/trade.module';
 import { ConfigModule } from '@nestjs/config';
-import * as request from 'supertest';
+import request from 'supertest';
+import type { Server } from 'http';
 
 describe('Referral System E2E', () => {
   let app: INestApplication;
@@ -56,7 +57,7 @@ describe('Referral System E2E', () => {
 
   describe('POST /api/referral/generate', () => {
     it('should generate a unique referral code for new user', async () => {
-      const response = await request.default(app.getHttpServer())
+      const response = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
@@ -69,12 +70,12 @@ describe('Referral System E2E', () => {
 
   describe('POST /api/referral/register', () => {
     it('should register user with valid referral code', async () => {
-      const referrerResponse = await request.default(app.getHttpServer())
+      const referrerResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
 
-      const registerResponse = await request.default(app.getHttpServer())
+      const registerResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: referrerResponse.body.referralCode,
@@ -87,7 +88,7 @@ describe('Referral System E2E', () => {
     });
 
     it('should reject registration with invalid referral code', async () => {
-      await request.default(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: 'INVALID1',
@@ -98,35 +99,35 @@ describe('Referral System E2E', () => {
 
   describe('Three-Level Referral Chain', () => {
     it('should create 3-level referral chain correctly', async () => {
-      const userAResponse = await request.default(app.getHttpServer())
+      const userAResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
 
-      const userBResponse = await request.default(app.getHttpServer())
+      const userBResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: userAResponse.body.referralCode,
         })
         .expect(201);
 
-      const userCResponse = await request.default(app.getHttpServer())
+      const userCResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: userBResponse.body.referralCode,
         })
         .expect(201);
 
-      await request.default(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({
           referralCode: userCResponse.body.referralCode,
         })
         .expect(201);
 
-      const networkResponse = await request.default(app.getHttpServer())
+      const networkResponse = await request(app.getHttpServer() as Server)
         .get('/api/referral/network')
-        .set('x-user-id', userAResponse.body.userId)
+        .set('x-user-id', userAResponse.body.userId as string)
         .expect(200);
 
       expect(networkResponse.body.total).toBeGreaterThanOrEqual(1);
@@ -134,28 +135,28 @@ describe('Referral System E2E', () => {
 
     it('should reject registration beyond max depth', async () => {
       // Create chain: A -> B -> C -> D (D is at depth 3)
-      const userAResponse = await request.default(app.getHttpServer())
+      const userAResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/generate')
         .send({})
         .expect(201);
 
-      const userBResponse = await request.default(app.getHttpServer())
+      const userBResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({ referralCode: userAResponse.body.referralCode })
         .expect(201);
 
-      const userCResponse = await request.default(app.getHttpServer())
+      const userCResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({ referralCode: userBResponse.body.referralCode })
         .expect(201);
 
-      const userDResponse = await request.default(app.getHttpServer())
+      const userDResponse = await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({ referralCode: userCResponse.body.referralCode })
         .expect(201);
 
       // Trying to register under D should fail (would be depth 4)
-      await request.default(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/api/referral/register')
         .send({ referralCode: userDResponse.body.referralCode })
         .expect(400);
